@@ -93,7 +93,7 @@ app.post('/login', async (req, res) => {
     const result = await client.query(text, values);
     var dbPassword = (result.rows[0].row_to_json.password);
     const dbId = result.rows[0].row_to_json.id;
-    console.log(dbId, dbPassword)
+    // console.log(dbId, dbPassword)
     if(bcrypt.compareSync(userPassword, dbPassword)) {
       res.status(200).send({'isAuthenticated': true, 'userId': dbId});
      } else {
@@ -180,6 +180,83 @@ app.post('/allRequestsByUserId', async (req, res) => {
     return res.status(200).send({
       'message': 'Got requests successfully!',
       'rows': rowResults
+    });
+  } catch (err) {
+    console.error(err);
+    res.send("Error " + err);
+  }
+});
+
+app.post('/getRequestById', async (req, res) => {
+  try {
+    const reqId = req.body.paramId
+    const text = `SELECT requests.id as req_id,  
+                  users.id as user_id,
+                  body,
+                  expiration,
+                  price,
+                  complete,
+                  email,
+                  type
+                  FROM requests LEFT JOIN users ON requests.user_id = users.id WHERE requests.id = $1`
+    const values = [reqId];
+    const client = await pool.connect();
+    const result = await client.query(text, values);
+    const resultRow = result.rows[0];
+    client.release();
+    return res.status(200).send({
+      'message': 'Got request successfully!',
+      'data': {
+        'request_id': resultRow.req_id,
+        'user_id': resultRow.user_id,
+        'type': resultRow.type,
+        'body': resultRow.body,
+        'expiration': resultRow.expiration ,
+        'price': resultRow.price,
+        'complete': resultRow.complete 
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.send("Error " + err);
+  }
+});
+
+app.post('/getBidsForRequest', async (req, res) => {
+  try {
+    const reqId = req.body.paramId
+    const text = 'SELECT * FROM bids WHERE req_id = $1'
+    const values = [reqId];
+    bidArray = [];
+    const client = await pool.connect();
+    const result = await client.query(text, values);
+    const resultRowsArray = result.rows;
+    client.release();
+
+    for (let i in resultRowsArray) {
+      bidArray.push(resultRowsArray[i])
+    }
+
+    return res.status(200).send({
+      'message': 'Got bids successfully!',
+      'data': bidArray
+    });
+  } catch (err) {
+    console.error(err);
+    res.send("Error " + err);
+  }
+});
+
+app.post('/deteteRequest', async (req, res) => {
+  try {
+    const reqId = req.body.reqId
+    const text = 'DELETE FROM requests WHERE id = $1'
+    const values = [reqId];
+    const client = await pool.connect();
+    const result = await client.query(text, values);
+    client.release();
+    return res.status(200).send({
+      'message': 'Deleted request successfully!'
     });
   } catch (err) {
     console.error(err);
